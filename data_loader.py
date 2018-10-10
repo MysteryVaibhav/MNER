@@ -95,12 +95,12 @@ class DataLoader:
                                                              shuffle=True, **kwargs)
         dataset_val = CustomDataSet(params, self.x, self.x_c, self.img_x, self.y, self.datasplit[1], self.datasplit[2])
         self.val_data_loader = torch.utils.data.DataLoader(dataset_val,
-                                                           batch_size=self.params.batch_size,
+                                                           batch_size=1,
                                                            collate_fn=dataset_val.collate,
                                                            shuffle=False, **kwargs)
         dataset_test = CustomDataSet(params, self.x, self.x_c, self.img_x, self.y, self.datasplit[2], self.datasplit[3])
         self.test_data_loader = torch.utils.data.DataLoader(dataset_test,
-                                                            batch_size=self.params.batch_size,
+                                                            batch_size=1,
                                                             collate_fn=dataset_test.collate,
                                                             shuffle=False, **kwargs)
 

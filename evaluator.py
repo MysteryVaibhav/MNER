@@ -7,30 +7,24 @@ class Evaluator:
         self.params = params
         self.data_loader = data_loader
 
-    def get_accuracy(self, model, split):
+    def get_accuracy(self, model, crf, split):
         if split == 'val':
             data_loader = self.data_loader.val_data_loader
         else:
             data_loader = self.data_loader.test_data_loader
 
         model.eval()
-        labels_pred = None
-        labels = None
-        words = None
-        sent_lens = None
+        labels_pred = []
+        labels = []
+        words = []
+        sent_lens = []
         for (x, x_img, y, mask, chars, lens) in tqdm(data_loader):
             emissions = model(to_variable(x), to_variable(x_img), lens, to_variable(mask), to_variable(chars))       # seq_len * bs * labels
-            pre_test_label_index = emissions.transpose(0, 1).data.max(dim=2)[1].cpu().numpy()    # bs * seq_len
-            if words is None:
-                words = x.cpu().numpy()
-                labels = y.cpu().numpy()
-                labels_pred = pre_test_label_index
-                sent_lens = lens.cpu().numpy()
-            else:
-                words = np.concatenate((words, x.cpu().numpy()), axis=1)
-                labels = np.concatenate((labels, y.cpu().numpy()), axis=1)
-                labels_pred = np.concatenate((labels_pred, pre_test_label_index), axis=1)
-                sent_lens = np.concatenate((sent_lens, lens.cpu().numpy()), axis=0)
+            pre_test_label_index = crf.decode(emissions) #emissions.transpose(0, 1).data.max(dim=2)[1].cpu().numpy()    # bs * seq_len
+            words.append(x.cpu().numpy().squeeze(0))
+            labels.append(y.cpu().numpy().squeeze(0))
+            labels_pred.append(pre_test_label_index[0])
+            sent_lens.append(lens.cpu().numpy()[0])
 
         return self.evaluate(labels_pred, labels, words, sent_lens)
 

@@ -72,7 +72,7 @@ class Trainer:
 
                 # Calculate accuracy and save best model
                 if (epoch + 1) % self.params.validate_every == 0:
-                    acc_dev, f1_dev, p_dev, r_dev = self.evaluator.get_accuracy(model, 'val')
+                    acc_dev, f1_dev, p_dev, r_dev = self.evaluator.get_accuracy(model, loss_function, 'val')
 
                     print("Epoch {} : Training Loss: {:.5f}, Acc: {}, F1: {}, Prec: {}, Rec: {},"
                           "Time elapsed {:.2f} mins"
