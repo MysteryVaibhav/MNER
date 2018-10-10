@@ -14,7 +14,9 @@ class MNER(torch.nn.Module):
         # Get visually attended features
         self.sca = StackedCrossAttention(params.lambda_1)
         self.gate = FilterGate(params)
-        self.projection = nn.Linear(in_features=2 * params.hidden_dimension, out_features=num_of_tags)
+        self.dropout = nn.Dropout(params.dropout)
+        self.projection_1 = nn.Linear(in_features=2 * params.hidden_dimension, out_features=params.hidden_dimension)
+        self.projection = nn.Linear(in_features=params.hidden_dimension, out_features=num_of_tags)
 
     def forward(self, sentence, image, sentence_lens, mask, chars):
         # Get the text features
@@ -32,10 +34,15 @@ class MNER(torch.nn.Module):
         a_v = self.sca(u, mask, v, s_t)
 
         # Apply filteration gate
-        m = self.gate(u, a_v)                                                             # bs * seq_len * (2 * hidden)
+        if self.params.use_filter_gate == 1:
+            m = self.gate(u, a_v)                                                             # bs * seq_len * (2 * hidden)
+        else:
+            m = torch.cat((u, a_v), dim=2)
 
         # projecting to labels
-        out = self.projection(m)                                                          # bs * seq_len * tags
+        out = self.projection_1(m)
+        out = F.relu(self.dropout(out))
+        out = self.projection(out)                                                          # bs * seq_len * tags
         return out.permute(1, 0, 2)                                                       # seq_len * bs * tags
 
 
@@ -44,6 +51,7 @@ class Encoder(torch.nn.Module):
         super(Encoder, self).__init__()
         self.word_embeddings = nn.Embedding(params.vocab_size, params.embedding_dimension)
         self.params = params
+        self.dropout = nn.Dropout(params.dropout)
         if self.params.use_char_embedding == 1:
             self.char_embeddings = nn.Embedding(params.char_vocab_size, params.embedding_dimension_char)
             self.conv_bi = nn.Conv1d(in_channels=params.embedding_dimension_char, out_channels=params.hidden_dimension_char,
@@ -71,19 +79,19 @@ class Encoder(torch.nn.Module):
             # TODO: Check this char embedding later
             char_embedddings = self.char_embeddings(chars).permute(0, 2, 1)  # bs * ed * seq
             h_bi = self.conv_bi(char_embedddings)[:, :, :-1]  # bs * hd * seq
-            h_bi = F.max_pool1d(F.relu(h_bi), kernel_size=self.params.word_maxlen)
+            h_bi = F.max_pool1d(F.relu(self.dropout(h_bi)), kernel_size=self.params.word_maxlen)
             h_tri = self.conv_tri(char_embedddings)[:, :, :-2]  # bs * hd * seq
-            h_tri = F.max_pool1d(F.relu(h_tri), kernel_size=self.params.word_maxlen)
+            h_tri = F.max_pool1d(F.relu(self.dropout(h_tri)), kernel_size=self.params.word_maxlen)
             h_quad = self.conv_quad(char_embedddings)[:, :, :-3]  # bs * hd * seq
-            h_quad = F.max_pool1d(F.relu(h_quad), kernel_size=self.params.word_maxlen)
+            h_quad = F.max_pool1d(F.relu(self.dropout(h_quad)), kernel_size=self.params.word_maxlen)
             h_char = torch.cat((h_bi, h_tri, h_quad), dim=1).permute(2, 0, 1)
-            h_char = self.fc_conv(h_char)
+            h_char = self.fc_conv(self.dropout(h_char))
             embeds = torch.cat((embeds, h_char), dim=2)
 
         packed_input = pack_padded_sequence(embeds, seq_lens.numpy())
         packed_outputs, _ = self.lstm(packed_input)
         outputs, _ = pad_packed_sequence(packed_outputs)
-
+        outputs = self.dropout(outputs)
         return outputs.permute(1, 0, 2)  # batch_size * seq_len * hidden_dimension
 
 

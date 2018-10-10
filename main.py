@@ -21,9 +21,11 @@ def parse_arguments():
     parser.add_argument("--vocab_size", dest="vocab_size", type=int, default=39034)
     parser.add_argument("--char_vocab_size", dest="char_vocab_size", type=int, default=127)
     parser.add_argument("--use_char_embedding", dest="use_char_embedding", type=int, default=1)
+    parser.add_argument("--use_filter_gate", dest="use_filter_gate", type=int, default=1)
 
     parser.add_argument("--batch_size", dest="batch_size", type=int, default=4)
     parser.add_argument("--lr", dest="lr", type=float, default=0.001)
+    parser.add_argument("--dropout", dest="dropout", type=float, default=0.2)
     parser.add_argument("--num_epochs", dest="num_epochs", type=int, default=30)
     parser.add_argument("--lambda_1", dest="lambda_1", type=int, default=9)
     parser.add_argument("--n_layers", dest="n_layers", type=int, default=1)
