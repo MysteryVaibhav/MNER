@@ -3,7 +3,6 @@ import torch.utils.data
 import os
 from collections import Counter
 import numpy as np
-from keras.preprocessing.sequence import pad_sequences
 import gensim
 
 
@@ -252,7 +251,14 @@ class DataLoader:
         return labelVoc_inv, labelVoc
 
     @staticmethod
-    def pad_sequence(sentences, img_to_feature, vocabulary, vocabulary_char, labelVoc, word_maxlen=30, sent_maxlen=35):
+    def pad_sequences(y, sent_maxlen):
+        padded = np.zeros((len(y), sent_maxlen))
+        for i, each in enumerate(y):
+            trunc_len = min(sent_maxlen, len(each))
+            padded[i, :trunc_len] = each[:trunc_len]
+        return padded.astype(np.int32)
+
+    def pad_sequence(self, sentences, img_to_feature, vocabulary, vocabulary_char, labelVoc, word_maxlen=30, sent_maxlen=35):
         """
             This function is used to pad the word into the same length, the word length is set to 30.
             Moreover, it also pad each sentence into the same length, the length is set to 35.
@@ -271,8 +277,8 @@ class DataLoader:
             x.append(w_id)
             y.append(y_id)
 
-        y = pad_sequences(y, maxlen=sent_maxlen, padding='post', truncating='post').astype(np.int32)
-        x = pad_sequences(x, maxlen=sent_maxlen, padding='post', truncating='post').astype(np.int32)
+        y = self.pad_sequences(y, sent_maxlen)
+        x = self.pad_sequences(x, sent_maxlen)
 
         img_x = np.asarray(img_to_feature)
 
