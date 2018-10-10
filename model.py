@@ -42,7 +42,7 @@ class MNER(torch.nn.Module):
 
         # projecting to labels
         out = self.projection_1(m)
-        out = F.relu(self.dropout(out))
+        out = F.leaky_relu(self.dropout(out))
         out = self.projection(out)                                                          # bs * seq_len * tags
         return out.permute(1, 0, 2)                                                       # seq_len * bs * tags
 
@@ -80,11 +80,11 @@ class Encoder(torch.nn.Module):
             # TODO: Check this char embedding later
             char_embedddings = self.char_embeddings(chars).permute(0, 2, 1)  # bs * ed * seq
             h_bi = self.conv_bi(char_embedddings)[:, :, :-1]  # bs * hd * seq
-            h_bi = F.max_pool1d(F.relu(self.dropout(h_bi)), kernel_size=self.params.word_maxlen)
+            h_bi = F.max_pool1d(F.leaky_relu(self.dropout(h_bi)), kernel_size=self.params.word_maxlen)
             h_tri = self.conv_tri(char_embedddings)[:, :, :-2]  # bs * hd * seq
-            h_tri = F.max_pool1d(F.relu(self.dropout(h_tri)), kernel_size=self.params.word_maxlen)
+            h_tri = F.max_pool1d(F.leaky_relu(self.dropout(h_tri)), kernel_size=self.params.word_maxlen)
             h_quad = self.conv_quad(char_embedddings)[:, :, :-3]  # bs * hd * seq
-            h_quad = F.max_pool1d(F.relu(self.dropout(h_quad)), kernel_size=self.params.word_maxlen)
+            h_quad = F.max_pool1d(F.leaky_relu(self.dropout(h_quad)), kernel_size=self.params.word_maxlen)
             h_char = torch.cat((h_bi, h_tri, h_quad), dim=1).permute(2, 0, 1)
             h_char = self.fc_conv(self.dropout(h_char))
             embeds = torch.cat((embeds, h_char), dim=2)
