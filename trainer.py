@@ -44,12 +44,12 @@ class Trainer:
                 iters = 1
                 losses = []
                 start_time = timer()
-                for (x, x_img, y, mask, lens) in tqdm(self.data_loader.train_data_loader):
+                for (x, x_img, y, mask, x_c, lens) in tqdm(self.data_loader.train_data_loader):
                     model.train()
                     optimizer.zero_grad()
 
                     # forward pass
-                    emissions = model(to_variable(x), to_variable(x_img), lens, to_variable(mask))  # seq_len * bs * labels
+                    emissions = model(to_variable(x), to_variable(x_img), lens, to_variable(mask), to_variable(x_c))  # seq_len * bs * labels
                     tags = to_variable(y).transpose(0, 1).contiguous()                              # seq_len * bs
                     mask = to_variable(mask).byte().transpose(0, 1)                                 # seq_len * bs
 

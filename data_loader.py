@@ -4,11 +4,12 @@ import os
 from collections import Counter
 import numpy as np
 from keras.preprocessing.sequence import pad_sequences
-from gensim.models import word2vec
+import gensim
 
 
 class CustomDataSet(torch.utils.data.TensorDataset):
-    def __init__(self, x, x_c, img_x, y, s_idx, e_idx):
+    def __init__(self, params, x, x_c, img_x, y, s_idx, e_idx):
+        self.params = params
         self.x = x
         self.x_c = x_c
         self.img_x = img_x
@@ -21,16 +22,17 @@ class CustomDataSet(torch.utils.data.TensorDataset):
         return self.num_of_samples
 
     def __getitem__(self, idx):
-        # TODO: Add the character embeddings into the model
         x = self.x[self.s_idx + idx]
         y = self.y[self.s_idx + idx]
         img_x = self.img_x[self.s_idx + idx]
-        return x, y, img_x
+        x_c = self.x_c[self.s_idx + idx].reshape(-1)
+        return x, y, img_x, x_c
 
     def collate(self, batch):
         x = np.array([x[0] for x in batch])
         y = np.array([x[1] for x in batch])
         img_x = np.array([x[2] for x in batch])
+        x_c = np.array([x[3] for x in batch])
 
         bool_mask = x == 0
         mask = 1 - bool_mask.astype(np.int)
@@ -50,20 +52,23 @@ class CustomDataSet(torch.utils.data.TensorDataset):
         y = y[sorted_input_arg]
         img_x = img_x[sorted_input_arg]
         mask = mask[sorted_input_arg]
+        x_c = x_c[sorted_input_arg]
         input_len = input_len[sorted_input_arg]
 
         max_seq_len = int(input_len[0])
 
         trunc_x = np.zeros((len(batch), max_seq_len))
         trunc_y = np.zeros((len(batch), max_seq_len))
+        trunc_x_c = np.zeros((len(batch), max_seq_len * self.params.word_maxlen))
         trunc_mask = np.zeros((len(batch), max_seq_len))
         for i in range(len(batch)):
             trunc_x[i] = x[i, :max_seq_len]
             trunc_y[i] = y[i, :max_seq_len]
             trunc_mask[i] = mask[i, :max_seq_len]
+            trunc_x_c[i] = x_c[i, :max_seq_len * self.params.word_maxlen]
 
         return to_tensor(trunc_x).long(), to_tensor(img_x), to_tensor(trunc_y).long(), to_tensor(trunc_mask).long(), \
-               to_tensor(input_len).int()
+               to_tensor(trunc_x_c).long(), to_tensor(input_len).int()
 
 
 class DataLoader:
@@ -84,17 +89,17 @@ class DataLoader:
             = self.load_data()
         kwargs = {'num_workers': 4, 'pin_memory': True} if torch.cuda.is_available() else {}
 
-        dataset_train = CustomDataSet(self.x, self.x_c, self.img_x, self.y, self.datasplit[0], self.datasplit[1])
+        dataset_train = CustomDataSet(params, self.x, self.x_c, self.img_x, self.y, self.datasplit[0], self.datasplit[1])
         self.train_data_loader = torch.utils.data.DataLoader(dataset_train,
                                                              batch_size=self.params.batch_size,
                                                              collate_fn=dataset_train.collate,
                                                              shuffle=True, **kwargs)
-        dataset_val = CustomDataSet(self.x, self.x_c, self.img_x, self.y, self.datasplit[1], self.datasplit[2])
+        dataset_val = CustomDataSet(params, self.x, self.x_c, self.img_x, self.y, self.datasplit[1], self.datasplit[2])
         self.val_data_loader = torch.utils.data.DataLoader(dataset_val,
                                                            batch_size=self.params.batch_size,
                                                            collate_fn=dataset_val.collate,
                                                            shuffle=False, **kwargs)
-        dataset_test = CustomDataSet(self.x, self.x_c, self.img_x, self.y, self.datasplit[2], self.datasplit[3])
+        dataset_test = CustomDataSet(params, self.x, self.x_c, self.img_x, self.y, self.datasplit[2], self.datasplit[3])
         self.test_data_loader = torch.utils.data.DataLoader(dataset_test,
                                                             batch_size=self.params.batch_size,
                                                             collate_fn=dataset_test.collate,
@@ -174,12 +179,12 @@ class DataLoader:
         b = 0
         word_matrix = np.zeros((len(vocabulary) + 1, size))
         if self.params.word2vec_model != '':
-            model = word2vec.Word2Vec.load(self.params.word2vec_model)
+            model = gensim.models.KeyedVectors.load_word2vec_format(self.params.word2vec_model, binary=False)
         else:
             model = None
         for word, i in vocabulary.items():
             try:
-                word_matrix[i] = model[word.lower().encode('utf8')]
+                word_matrix[i] = model[word.lower()]
             except:
                 # if a word is not include in the vocabulary, it's word embedding will be set by random.
                 word_matrix[i] = np.random.uniform(-0.25, 0.25, size)

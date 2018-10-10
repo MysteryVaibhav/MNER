@@ -16,9 +16,9 @@ class MNER(torch.nn.Module):
         self.gate = FilterGate(params)
         self.projection = nn.Linear(in_features=2 * params.hidden_dimension, out_features=num_of_tags)
 
-    def forward(self, sentence, image, sentence_lens, mask):
+    def forward(self, sentence, image, sentence_lens, mask, chars):
         # Get the text features
-        u = self.text_encoder(sentence, sentence_lens)
+        u = self.text_encoder(sentence, sentence_lens, chars)
 
         # Get the image features
         v = self.linear_transform(image)
@@ -43,16 +43,42 @@ class Encoder(torch.nn.Module):
     def __init__(self, params, pretrained_weight):
         super(Encoder, self).__init__()
         self.word_embeddings = nn.Embedding(params.vocab_size, params.embedding_dimension)
+        self.params = params
+        if self.params.use_char_embedding == 1:
+            self.char_embeddings = nn.Embedding(params.char_vocab_size, params.embedding_dimension_char)
+            self.conv_bi = nn.Conv1d(in_channels=params.embedding_dimension_char, out_channels=params.hidden_dimension_char,
+                                     kernel_size=2, padding=1)
+            self.conv_tri = nn.Conv1d(in_channels=params.embedding_dimension_char, out_channels=params.hidden_dimension_char,
+                                      kernel_size=3, padding=2)
+            self.conv_quad = nn.Conv1d(in_channels=params.embedding_dimension_char, out_channels=params.hidden_dimension_char,
+                                       kernel_size=4, padding=3)
+            self.fc_conv = nn.Linear(in_features=3 * params.hidden_dimension_char, out_features=params.hidden_dimension_char)
+
         if pretrained_weight is not None:
             # Assigning pre-trained embeddings as initial weights
             self.word_embeddings.weight.data.copy_(torch.from_numpy(pretrained_weight))
 
-        self.lstm = nn.LSTM(input_size=params.embedding_dimension, hidden_size=params.hidden_dimension,
+        self.lstm = nn.LSTM(input_size=params.embedding_dimension + params.hidden_dimension_char
+                            if params.use_char_embedding == 1 else params.embedding_dimension,
+                            hidden_size=params.hidden_dimension,
                             num_layers=params.n_layers, bidirectional=True)
 
-    def forward(self, seq, seq_lens):
+    def forward(self, seq, seq_lens, chars):
         seq = seq.transpose(0, 1)  # seq_len * batch_size * embedding_dimension
         embeds = self.word_embeddings(seq)
+
+        if self.params.use_char_embedding == 1:
+            # TODO: Check this char embedding later
+            char_embedddings = self.char_embeddings(chars).permute(0, 2, 1)  # bs * ed * seq
+            h_bi = self.conv_bi(char_embedddings)[:, :, :-1]  # bs * hd * seq
+            h_bi = F.max_pool1d(F.relu(h_bi), kernel_size=self.params.word_maxlen)
+            h_tri = self.conv_tri(char_embedddings)[:, :, :-2]  # bs * hd * seq
+            h_tri = F.max_pool1d(F.relu(h_tri), kernel_size=self.params.word_maxlen)
+            h_quad = self.conv_quad(char_embedddings)[:, :, :-3]  # bs * hd * seq
+            h_quad = F.max_pool1d(F.relu(h_quad), kernel_size=self.params.word_maxlen)
+            h_char = torch.cat((h_bi, h_tri, h_quad), dim=1).permute(2, 0, 1)
+            h_char = self.fc_conv(h_char)
+            embeds = torch.cat((embeds, h_char), dim=2)
 
         packed_input = pack_padded_sequence(embeds, seq_lens.numpy())
         packed_outputs, _ = self.lstm(packed_input)

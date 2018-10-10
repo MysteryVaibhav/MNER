@@ -15,8 +15,12 @@ def parse_arguments():
     parser.add_argument("--word2vec_model", dest="word2vec_model", type=str, default='')
 
     parser.add_argument("--hidden_dimension", dest="hidden_dimension", type=int, default=16)
+    parser.add_argument("--hidden_dimension_char", dest="hidden_dimension_char", type=int, default=8)
     parser.add_argument("--embedding_dimension", dest="embedding_dimension", type=int, default=10)
+    parser.add_argument("--embedding_dimension_char", dest="embedding_dimension_char", type=int, default=5)
     parser.add_argument("--vocab_size", dest="vocab_size", type=int, default=39034)
+    parser.add_argument("--char_vocab_size", dest="char_vocab_size", type=int, default=127)
+    parser.add_argument("--use_char_embedding", dest="use_char_embedding", type=int, default=1)
 
     parser.add_argument("--batch_size", dest="batch_size", type=int, default=4)
     parser.add_argument("--lr", dest="lr", type=float, default=0.001)

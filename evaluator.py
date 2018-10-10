@@ -18,8 +18,8 @@ class Evaluator:
         labels = None
         words = None
         sent_lens = None
-        for (x, x_img, y, mask, lens) in tqdm(data_loader):
-            emissions = model(to_variable(x), to_variable(x_img), lens, to_variable(mask))       # seq_len * bs * labels
+        for (x, x_img, y, mask, chars, lens) in tqdm(data_loader):
+            emissions = model(to_variable(x), to_variable(x_img), lens, to_variable(mask), to_variable(chars))       # seq_len * bs * labels
             pre_test_label_index = emissions.transpose(0, 1).data.max(dim=2)[1].cpu().numpy()    # bs * seq_len
             if words is None:
                 words = x.cpu().numpy()
