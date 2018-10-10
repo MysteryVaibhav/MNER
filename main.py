@@ -37,6 +37,8 @@ def parse_arguments():
     parser.add_argument("--validate_every", dest="validate_every", type=int, default=1)
 
     MODEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models/')
+    if torch.cuda.is_available():
+        MODEL_DIR = '/data/extDisk2/vvaibhav/vner/models/'
     if not os.path.exists(MODEL_DIR):
         os.makedirs(MODEL_DIR)
     parser.add_argument("--mode", dest="mode", type=int, default=0)
