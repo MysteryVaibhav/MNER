@@ -54,7 +54,7 @@ class Trainer:
                     mask = to_variable(mask).byte().transpose(0, 1)                                 # seq_len * bs
 
                     # computing crf loss
-                    loss = loss_function(emissions, tags, mask=mask)
+                    loss = -loss_function(emissions, tags, mask=mask)
                     loss.backward()
                     losses.append(loss.data.cpu().numpy())
 
