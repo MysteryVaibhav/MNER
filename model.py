@@ -36,7 +36,10 @@ class MNER(torch.nn.Module):
 
         # Apply filteration gate
         if self.params.use_filter_gate == 1:
-            m = self.gate(u, a_v)                                                             # bs * seq_len * (2 * hidden)
+            if self.params.use_only_text == 1:
+                m = u
+            else:
+                m = self.gate(u, a_v)                                                             # bs * seq_len * (2 * hidden)
         else:
             m = torch.cat((u, a_v), dim=2)
 

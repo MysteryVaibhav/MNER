@@ -22,6 +22,7 @@ def parse_arguments():
     parser.add_argument("--char_vocab_size", dest="char_vocab_size", type=int, default=127)
     parser.add_argument("--use_char_embedding", dest="use_char_embedding", type=int, default=1)
     parser.add_argument("--use_filter_gate", dest="use_filter_gate", type=int, default=1)
+    parser.add_argument("--use_only_text", dest="use_only_text", type=int, default=1)
 
     parser.add_argument("--batch_size", dest="batch_size", type=int, default=4)
     parser.add_argument("--lr", dest="lr", type=float, default=0.001)
