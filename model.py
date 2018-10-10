@@ -15,9 +15,9 @@ class MNER(torch.nn.Module):
         self.sca = StackedCrossAttention(params.lambda_1)
         self.gate = FilterGate(params)
         self.dropout = nn.Dropout(params.dropout)
-        self.projection_1 = nn.Linear(in_features=2 * params.hidden_dimension if self.params.use_filter_gate == 1
-                                      else 4 * params.hidden_dimension, out_features=params.hidden_dimension)
-        self.projection = nn.Linear(in_features=params.hidden_dimension, out_features=num_of_tags)
+        self.projection = nn.Linear(in_features=2 * params.hidden_dimension if self.params.use_filter_gate == 1
+                                      else 4 * params.hidden_dimension, out_features=num_of_tags)
+        self.lsm = nn.LogSoftmax(dim=2)
 
     def forward(self, sentence, image, sentence_lens, mask, chars):
         # Get the text features
@@ -44,9 +44,8 @@ class MNER(torch.nn.Module):
             m = torch.cat((u, a_v), dim=2)
 
         # projecting to labels
-        out = self.projection_1(m)
-        out = F.leaky_relu(self.dropout(out))
-        out = self.projection(out)                                                          # bs * seq_len * tags
+        out = self.projection(m)
+        out = self.lsm(out)
         return out.permute(1, 0, 2)                                                       # seq_len * bs * tags
 
 
