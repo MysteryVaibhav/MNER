@@ -62,7 +62,7 @@ class Trainer:
                         torch.nn.utils.clip_grad_norm(model.parameters(), self.params.clip_value)
                     optimizer.step()
 
-                    tqdm.write("[%d] :: Training Loss: %f   \r" % (iters, np.asscalar(np.mean(losses))))
+                    #tqdm.write("[%d] :: Training Loss: %f   \r" % (iters, np.asscalar(np.mean(losses))))
                     iters += 1
 
                 if epoch + 1 % self.params.step_size == 0:

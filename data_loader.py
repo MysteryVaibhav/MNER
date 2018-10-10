@@ -178,7 +178,7 @@ class DataLoader:
         b = 0
         word_matrix = np.zeros((len(vocabulary) + 1, size))
         if self.params.word2vec_model != '':
-            model = gensim.models.KeyedVectors.load_word2vec_format(self.params.word2vec_model, binary=False)
+            model = gensim.models.KeyedVectors.load_word2vec_format(self.params.word2vec_model)
         else:
             model = None
         for word, i in vocabulary.items():
