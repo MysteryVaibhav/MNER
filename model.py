@@ -57,9 +57,9 @@ class Encoder(torch.nn.Module):
             self.char_embeddings = nn.Embedding(params.char_vocab_size, params.embedding_dimension_char)
             self.conv_bi = nn.Conv1d(in_channels=params.embedding_dimension_char, out_channels=params.hidden_dimension_char,
                                      kernel_size=2, padding=1)
-            self.conv_tri = nn.Conv1d(in_channels=params.embedding_dimension_char, out_channels=params.hidden_dimension_char,
+            self.conv_tri = nn.Conv1d(in_channels=params.hidden_dimension_char, out_channels=params.hidden_dimension_char,
                                       kernel_size=3, padding=2)
-            self.conv_quad = nn.Conv1d(in_channels=params.embedding_dimension_char, out_channels=params.hidden_dimension_char,
+            self.conv_quad = nn.Conv1d(in_channels=params.hidden_dimension_char, out_channels=params.hidden_dimension_char,
                                        kernel_size=4, padding=3)
             self.fc_conv = nn.Linear(in_features=3 * params.hidden_dimension_char, out_features=params.hidden_dimension_char)
 
@@ -78,17 +78,26 @@ class Encoder(torch.nn.Module):
 
         if self.params.use_char_embedding == 1:
             # TODO: Check this char embedding later
-            char_embedddings = self.char_embeddings(chars).permute(0, 2, 1)  # bs * ed * seq
-            h_bi = self.conv_bi(char_embedddings)[:, :, :-1]  # bs * hd * seq
-            h_bi = F.max_pool1d(F.leaky_relu(self.dropout(h_bi)), kernel_size=self.params.word_maxlen)
-            h_tri = self.conv_tri(char_embedddings)[:, :, :-2]  # bs * hd * seq
-            h_tri = F.max_pool1d(F.leaky_relu(self.dropout(h_tri)), kernel_size=self.params.word_maxlen)
-            h_quad = self.conv_quad(char_embedddings)[:, :, :-3]  # bs * hd * seq
-            h_quad = F.max_pool1d(F.leaky_relu(self.dropout(h_quad)), kernel_size=self.params.word_maxlen)
-            h_char = torch.cat((h_bi, h_tri, h_quad), dim=1).permute(2, 0, 1)
-            h_char = self.fc_conv(self.dropout(h_char))
-            embeds = torch.cat((embeds, h_char), dim=2)
+            char_embedddings = self.char_embeddings(chars.view(-1, chars.size(2))).view(*chars.size(), -1)
+            char_size = char_embedddings.size()
+            # first transform to [batch *length, char_length, char_dim]
+            # then transpose to [batch * length, char_dim, char_length]
+            char = char_embedddings.view(char_size[0] * char_size[1], char_size[2], char_size[3]).transpose(1, 2)
+            # put into cnn [batch*length, char_filters, char_length]
+            # then put into maxpooling [batch * length, char_filters]
+            char, _ = self.conv_bi(char).max(dim=2)
+            # reshape to [batch, length, char_filters]
+            char = F.relu(char).view(char_size[0], char_size[1], -1)
+            # char = char.permute(0, 2, 1)
+            # char, _ = self.conv_tri(char).max(dim=2)
+            # char = F.relu(char).view(char_size[0], char_size[1], -1)
+            # char, _ = self.conv_quad(char).max(dim=2)
+            # char = F.relu(char).view(char_size[0], char_size[1], -1)
 
+            char = char.permute(1, 0, 2)
+            embeds = torch.cat((embeds, char), dim=2)
+
+        embeds = self.dropout(embeds)
         packed_input = pack_padded_sequence(embeds, seq_lens.numpy())
         packed_outputs, _ = self.lstm(packed_input)
         outputs, _ = pad_packed_sequence(packed_outputs)

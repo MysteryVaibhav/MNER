@@ -24,7 +24,7 @@ class CustomDataSet(torch.utils.data.TensorDataset):
         x = self.x[self.s_idx + idx]
         y = self.y[self.s_idx + idx]
         img_x = self.img_x[self.s_idx + idx]
-        x_c = self.x_c[self.s_idx + idx].reshape(-1)
+        x_c = self.x_c[self.s_idx + idx]
         return x, y, img_x, x_c
 
     def collate(self, batch):
@@ -58,13 +58,13 @@ class CustomDataSet(torch.utils.data.TensorDataset):
 
         trunc_x = np.zeros((len(batch), max_seq_len))
         trunc_y = np.zeros((len(batch), max_seq_len))
-        trunc_x_c = np.zeros((len(batch), max_seq_len * self.params.word_maxlen))
+        trunc_x_c = np.zeros((len(batch), max_seq_len, self.params.word_maxlen))
         trunc_mask = np.zeros((len(batch), max_seq_len))
         for i in range(len(batch)):
             trunc_x[i] = x[i, :max_seq_len]
             trunc_y[i] = y[i, :max_seq_len]
             trunc_mask[i] = mask[i, :max_seq_len]
-            trunc_x_c[i] = x_c[i, :max_seq_len * self.params.word_maxlen]
+            trunc_x_c[i] = x_c[i, :max_seq_len, :]
 
         return to_tensor(trunc_x).long(), to_tensor(img_x), to_tensor(trunc_y).long(), to_tensor(trunc_mask).long(), \
                to_tensor(trunc_x_c).long(), to_tensor(input_len).int()
