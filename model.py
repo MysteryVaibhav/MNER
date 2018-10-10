@@ -15,7 +15,8 @@ class MNER(torch.nn.Module):
         self.sca = StackedCrossAttention(params.lambda_1)
         self.gate = FilterGate(params)
         self.dropout = nn.Dropout(params.dropout)
-        self.projection_1 = nn.Linear(in_features=2 * params.hidden_dimension, out_features=params.hidden_dimension)
+        self.projection_1 = nn.Linear(in_features=2 * params.hidden_dimension if self.params.use_filter_gate == 1
+                                      else 4 * params.hidden_dimension, out_features=params.hidden_dimension)
         self.projection = nn.Linear(in_features=params.hidden_dimension, out_features=num_of_tags)
 
     def forward(self, sentence, image, sentence_lens, mask, chars):
