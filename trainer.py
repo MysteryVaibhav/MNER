@@ -37,7 +37,8 @@ class Trainer:
         if torch.cuda.is_available():
             model = model.cuda()
             loss_function = loss_function.cuda()
-        optimizer = torch.optim.Adam(model.parameters(), lr=self.params.lr, weight_decay=self.params.wdecay)
+        optimizer = torch.optim.SGD(model.parameters(), lr=self.params.lr, momentum=0.9)
+        
         try:
             prev_best = 0
             for epoch in range(self.params.num_epochs):
@@ -65,14 +66,13 @@ class Trainer:
                     #tqdm.write("[%d] :: Training Loss: %f   \r" % (iters, np.asscalar(np.mean(losses))))
                     iters += 1
 
-                if epoch + 1 % self.params.step_size == 0:
-                    optim_state = optimizer.state_dict()
-                    optim_state['param_groups'][0]['lr'] = optim_state['param_groups'][0]['lr'] / self.params.gamma
-                    optimizer.load_state_dict(optim_state)
+                optim_state = optimizer.state_dict()
+                optim_state['param_groups'][0]['lr'] = optim_state['param_groups'][0]['lr'] / (1 + self.params.gamma * (epoch + 1))
+                optimizer.load_state_dict(optim_state)
 
                 # Calculate accuracy and save best model
                 if (epoch + 1) % self.params.validate_every == 0:
-                    acc_dev, f1_dev, p_dev, r_dev = self.evaluator.get_accuracy(model, loss_function, 'val')
+                    acc_dev, f1_dev, p_dev, r_dev = self.evaluator.get_accuracy(model, 'val', loss_function)
 
                     print("Epoch {} : Training Loss: {:.5f}, Acc: {}, F1: {}, Prec: {}, Rec: {},"
                           "Time elapsed {:.2f} mins"
