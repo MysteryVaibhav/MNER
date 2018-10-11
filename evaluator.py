@@ -1,5 +1,6 @@
 from util import *
 from tqdm import tqdm
+from torchcrf import CRF
 
 
 class Evaluator:
@@ -7,12 +8,18 @@ class Evaluator:
         self.params = params
         self.data_loader = data_loader
 
-    def get_accuracy(self, model, crf, split):
+    def get_accuracy(self, model, split, crf=None):
         if split == 'val':
             data_loader = self.data_loader.val_data_loader
         else:
             data_loader = self.data_loader.test_data_loader
-
+        
+        if crf == None:
+            num_of_tags = len(self.data_loader.labelVoc)
+            crf = CRF(num_of_tags)
+            if torch.cuda.is_available():
+                crf = crf.cuda()
+        
         model.eval()
         labels_pred = []
         labels = []
@@ -20,7 +27,7 @@ class Evaluator:
         sent_lens = []
         for (x, x_img, y, mask, chars, lens) in tqdm(data_loader):
             emissions = model(to_variable(x), to_variable(x_img), lens, to_variable(mask), to_variable(chars))       # seq_len * bs * labels
-            pre_test_label_index = crf.decode(emissions) #emissions.transpose(0, 1).data.max(dim=2)[1].cpu().numpy()    # bs * seq_len
+            pre_test_label_index = crf.decode(emissions)   # bs * seq_len
             words.append(x.cpu().numpy().squeeze(0))
             labels.append(y.cpu().numpy().squeeze(0))
             labels_pred.append(pre_test_label_index[0])
